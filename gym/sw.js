@@ -1,5 +1,5 @@
 // Cambiar VERSION al actualizar la app para que los teléfonos bajen la versión nueva.
-const VERSION = "gym-2026-11-02-7";
+const VERSION = "gym-2026-11-02-8";
 const CORE = ["./", "index.html", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png", "icons/favicon.png"];
 
 self.addEventListener("install", e => {
