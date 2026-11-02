@@ -1,0 +1,13 @@
+{
+  "name": "dropshipping-py",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Plataforma de dropshipping con pasarelas de pago de Paraguay (Pagopar, Bancard) abierta a usuarios de cualquier país",
+  "type": "module",
+  "engines": { "node": ">=22.5" },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server.js",
+    "dev": "GATEWAY_SIMULATOR=1 node --disable-warning=ExperimentalWarning --watch server.js",
+    "test": "node --disable-warning=ExperimentalWarning --test \"test/**/*.test.js\""
+  }
+}
