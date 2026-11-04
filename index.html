@@ -286,8 +286,8 @@ const meses=(k,step=12)=>Array.from({length:k},(_,i)=>step*(i+1));
 const lista=a=>a.length<2?a.join(""):a.slice(0,-1).join(", ")+" y "+a[a.length-1];
 
 let S={marca:"NISSAN",i:0,plan:"ECO",plazo:36,anios:5,ref:"con"};
-// Sin entrega inicial (Lista y Familiar 2): todo en cuotas; la 1ª cuota absorbe el redondeo
-const sinEntAplica=(plan,plazo)=>plan==="F2"||(plan==="L"&&plazo>0);
+// Sin entrega inicial (Lista, Familiar 2, Plus 3 y Eco): todo en cuotas; la 1ª cuota absorbe el redondeo
+const sinEntAplica=(plan,plazo,v)=>plan==="F2"||plan==="P3"||(plan==="ECO"&&!!(v&&v.p))||(plan==="L"&&plazo>0);
 function cuotasSE(T,n){const c=Math.floor(T/n);return {cuota:c,primera:T-c*(n-1)};}
 const parseE=()=>{const s=String($("entrega").value).replace(/[^\d]/g,"");return s===""?null:parseInt(s,10);};
 
@@ -348,6 +348,14 @@ function calc(v,plan,plazo,Ein,usado){
     r.sin=op(m20,2*y,"cuotas semestrales");r.con=op(m30,y,"cuotas anuales");
     r.total=T-b;return r;
   }
+  if(plan==="ECO"&&S.se&&v.p){
+    // Eco sin entrega: siempre lista + 7,9% (aunque el modelo esté en la tabla Eco); refuerzo final 25%, 4 refuerzos anuales 4%, el resto en 48 cuotas y la 1ª absorbe el redondeo
+    const T=Math.round(v.p[0]*1.079),b=bonoUSD(v,false),ref=f5(T*.04),fin=f10(T*.25),base=T-b-fin;
+    Object.assign(r,{precio:T,precioL:"Precio plan (lista + 7,9%)",bono:b,min:0,E:0,low:false,sinEnt:true,sistema:!v.eco});
+    r.con=Object.assign({entrega:0,n:48,sinEnt:true,refN:4,ref,refM:meses(4),fin,finM:"cuota 49"},cuotasSE(base-4*ref,48));
+    r.sin=Object.assign({entrega:0,n:48,sinEnt:true,fin,finM:"cuota 49"},cuotasSE(base,48));
+    r.total=T-b;return r;
+  }
   if(plan==="ECO"&&!v.eco){
     const T=Math.round(v.p[0]*1.079),b=bonoUSD(v,false),min=Math.round(T*.10),{E,low}=entregaDe(Ein,min);
     const ref=f5(T*.04),fin=f10(T*.25),base=T-b-fin;
@@ -362,11 +370,12 @@ function calc(v,plan,plazo,Ein,usado){
   // Planes publicados: Familiar 2, Plus 3 y Eco de tabla
   const p=plan==="F2"?v.f2:plan==="P3"?v.p3:v.eco;
   const n=plan==="F2"?60:plan==="P3"?36:48,k=n/12,fin=p.f||0,finM=plan==="P3"?"mes 37":"cuota 49";
-  if(plan==="F2"&&S.se){
+  if((plan==="F2"||plan==="P3")&&S.se){
+    // Plus 3 sin entrega (supuesto): precio del plan, mismos refuerzos y refuerzo final publicados, el resto en 36 cuotas
     const b=bonoUSD(v,false),T=p.t-b;
     Object.assign(r,{precio:p.t,precioL:"Precio del plan",bono:b,min:0,E:0,low:false,sinEnt:true,pub:p});
-    r.sin=Object.assign({entrega:0,n,sinEnt:true},cuotasSE(T,n));
-    r.con=Object.assign({entrega:0,n,sinEnt:true,refN:k,ref:p.r,refM:meses(k)},cuotasSE(T-k*p.r,n));
+    r.sin=Object.assign({entrega:0,n,sinEnt:true,fin,finM},cuotasSE(T-fin,n));
+    r.con=Object.assign({entrega:0,n,sinEnt:true,refN:k,ref:p.r,refM:meses(k),fin,finM},cuotasSE(T-fin-k*p.r,n));
     r.total=T;return r;
   }
   const b=bonoUSD(v,false),{E,low}=entregaDe(Ein,p.e),reduce=b+(E-p.e);
@@ -443,9 +452,9 @@ function render(){
   $("gsHint").textContent=esCont?"· no aplica al contado":"· Gs. 7.500 por US$";
   CUR.gs=$("gsOn").checked&&!esCont;
   CUR.dia=parseInt(String($("dia").value).replace(/[^\d]/g,""),10)||0;
-  const seOk=sinEntAplica(plan,plazo);
+  const seOk=sinEntAplica(plan,plazo,v);
   $("sinEntBox").hidden=!seOk;
-  $("sinEntHint").textContent=plan==="F2"?"· todo en cuotas, mantiene los beneficios del plan":"· todo en cuotas, sin beneficios";
+  $("sinEntHint").textContent=plan==="ECO"?"· precio lista + 7,9%, todo en cuotas, mantiene los beneficios del plan":plan==="F2"||plan==="P3"?"· todo en cuotas, mantiene los beneficios del plan":"· todo en cuotas, sin beneficios";
   const se=seOk&&$("sinEnt").checked;S.se=se;
   $("entBox").hidden=se;
   const r=calc(v,plan,plazo,Ein,se?false:usado);
@@ -561,7 +570,7 @@ function mensaje(v,r){
 function pie(v){
   const base="Fuentes: listas de cada marca de septiembre y octubre 2026 (Fiat 2/7/2026, Volvo 10/9/2026 y 10/4/2026), planes Familiar 2 y Plus 3 de cada marca, Plan Eco I a IV y BMW Motorrad del 2/10/2026, y bonos del memo Garden 202/2026 (facturaciones del 2 al 30/11/2026). ";
   const reglas="Lista: entrega mínima "+(v.volvo?"15%":"10%")+" del precio sin bono; refuerzos opcionales de hasta 4% por año; contado: un solo pago y, con usado, la tasación se descuenta del precio contado hasta el 50%. ";
-  return base+reglas+"Familiar 2, Plus 3 y Eco usan los valores publicados; si la entrega es mayor o hay bono, la diferencia baja las cuotas. Modelos fuera de la tabla Eco: lista + 7,9%, entrega 10%, 4 refuerzos de 4%, refuerzo final 25% en la cuota 49. Plan Normal 48: precio de lista, entrega 10% (Volvo 15%), 4 refuerzos de 4%, refuerzo final 25% en la cuota 49, sin beneficios. Plan Campo: precio Familiar 2, entrega mínima 20% con cuotas semestrales o 30% con cuotas anuales, hasta 5 años. Cuotas y refuerzos redondeados hacia abajo a múltiplos de US$ 5 (refuerzo final a US$ 10); la diferencia se suma a la entrega. Lista: se financia hasta 60 meses con o sin usado; con usado o con entrega menor a la mínima no incluye el 50% de la escritura.";
+  return base+reglas+"Familiar 2, Plus 3 y Eco usan los valores publicados; si la entrega es mayor o hay bono, la diferencia baja las cuotas. Modelos fuera de la tabla Eco: lista + 7,9%, entrega 10%, 4 refuerzos de 4%, refuerzo final 25% en la cuota 49. Sin entrega inicial: Eco = lista + 7,9%, refuerzo final 25%, 4 refuerzos de 4% y el resto en 48 cuotas; Plus 3 = precio del plan con sus refuerzos y refuerzo final, el resto en 36 cuotas; la 1ª cuota absorbe el redondeo. Plan Normal 48: precio de lista, entrega 10% (Volvo 15%), 4 refuerzos de 4%, refuerzo final 25% en la cuota 49, sin beneficios. Plan Campo: precio Familiar 2, entrega mínima 20% con cuotas semestrales o 30% con cuotas anuales, hasta 5 años. Cuotas y refuerzos redondeados hacia abajo a múltiplos de US$ 5 (refuerzo final a US$ 10); la diferencia se suma a la entrega. Lista: se financia hasta 60 meses con o sin usado; con usado o con entrega menor a la mínima no incluye el 50% de la escritura.";
 }
 $("modelo").onchange=()=>{S.i=+$("modelo").value;onVehicle();};
 ["bonoOn","usado","sinEnt","gsOn"].forEach(id=>$(id).onchange=render);
