@@ -8,6 +8,7 @@
   "scripts": {
     "start": "node --disable-warning=ExperimentalWarning server.js",
     "dev": "GATEWAY_SIMULATOR=1 node --disable-warning=ExperimentalWarning --watch server.js",
+    "crear-admin": "node --disable-warning=ExperimentalWarning scripts/crear-admin.js",
     "test": "node --disable-warning=ExperimentalWarning --test \"test/**/*.test.js\""
   }
 }
