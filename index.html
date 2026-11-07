@@ -356,10 +356,12 @@ function calc(v,plan,plazo,Ein,usado){
     r.sin=Object.assign({entrega:0,n:48,sinEnt:true,fin,finM:"cuota 49"},cuotasSE(base,48));
     r.total=T-b;return r;
   }
-  if(plan==="ECO"&&!v.eco){
-    const T=Math.round(v.p[0]*1.079),b=bonoUSD(v,false),min=Math.round(T*.10),{E,low}=entregaDe(Ein,min);
+  // Eco con entrega menor a la mínima (regla de Mathias 7/11/2026): se permite, con lista + 7,9%, la entrega cargada, 48 cuotas, 4 refuerzos de 4% y refuerzo final 25%
+  const ecoBajo=plan==="ECO"&&!!v.eco&&!!v.p&&Ein!==null&&Ein<v.eco.e;
+  if(plan==="ECO"&&v.p&&(!v.eco||ecoBajo)){
+    const T=Math.round(v.p[0]*1.079),b=bonoUSD(v,false),min=v.eco?v.eco.e:Math.round(T*.10),bajo=Ein!==null&&Ein<min,E=Ein===null?min:Ein,low=false;
     const ref=f5(T*.04),fin=f10(T*.25),base=T-b-fin;
-    Object.assign(r,{precio:T,precioL:"Precio plan (lista + 7,9%)",bono:b,min,minTxt:"10% del precio del plan",E,low,sistema:true});
+    Object.assign(r,{precio:T,precioL:"Precio plan (lista + 7,9%)",bono:b,min,minTxt:v.eco?"entrega del plan Eco":"10% del precio del plan",E,low,bajoMin:bajo,sistema:true});
     const Qc=base-E-4*ref,cc=f5(Math.max(Qc,0)/48);
     r.con={entrega:base-48*cc-4*ref,n:48,cuota:cc,refN:4,ref,refM:meses(4),fin,finM:"cuota 49"};
     const cs=f5(Math.max(base-E,0)/48);
@@ -482,6 +484,7 @@ function render(){
   const al=$("alert");let w=r.warn;
   if(!w&&r.listaLow)w="La entrega está por debajo del mínimo de "+fmt(r.min)+". Así no incluye el 50% de la escritura.";
   else if(!w&&r.low)w="La entrega cargada está por debajo del mínimo. Calculé con "+fmt(r.min)+".";
+  else if(!w&&r.bajoMin)w="Entrega menor a la mínima ("+fmt(r.min)+"): se calcula con precio de lista + 7,9%, 48 cuotas, 4 refuerzos de 4% y refuerzo final de 25%.";
   al.hidden=!w;al.textContent=w||"";
   // Tarjetas
   if(r.contado){
