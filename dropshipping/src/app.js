@@ -143,7 +143,8 @@ export function createApp(db, cfg) {
     return { data: { ok: true }, headers: { 'set-cookie': cookie('', 0) } };
   });
 
-  r.add('GET', '/api/yo', (ctx) => ({ data: { user: publicUser(need(ctx), getSettings(db), ctx.now) } }));
+  // Sin sesión responde user: null (no es un error: la página lo consulta al abrir).
+  r.add('GET', '/api/yo', (ctx) => ({ data: { user: ctx.user ? publicUser(ctx.user, getSettings(db), ctx.now) : null } }));
 
   r.add('PUT', '/api/cuenta/cobro', (ctx) => {
     const u = need(ctx, 'proveedor', 'vendedor');
@@ -484,6 +485,29 @@ export function createApp(db, cfg) {
     const note = typeof ctx.body.note === 'string' ? ctx.body.note.slice(0, 300) : '';
     processWithdrawal(db, Number(ctx.params.id), ctx.body.status, note, ctx.now);
     return { data: db.prepare('SELECT * FROM withdrawals WHERE id = ?').get(Number(ctx.params.id)) };
+  });
+
+  r.add('GET', '/api/admin/pedidos', (ctx) => {
+    need(ctx, 'admin');
+    return {
+      data: db.prepare(
+        `SELECT o.id, o.kind, o.public_code, o.item_title, o.qty, o.total_pyg, o.platform_fee_pyg, o.status, o.gateway,
+                o.tracking, o.created_at, o.paid_at, o.shipped_at, o.delivered_at, o.buyer_name, o.buyer_country,
+                sel.store_name AS seller_store, sup.name AS supplier_name
+         FROM orders o LEFT JOIN users sel ON sel.id = o.seller_id LEFT JOIN users sup ON sup.id = o.supplier_id
+         WHERE o.status != 'pendiente_pago' ORDER BY o.id DESC LIMIT 300`
+      ).all(),
+    };
+  });
+
+  r.add('GET', '/api/admin/usuarios', (ctx) => {
+    need(ctx, 'admin');
+    return {
+      data: db.prepare(
+        `SELECT id, email, name, country, role, store_name, plan, plan_until, kyc_status, active, created_at
+         FROM users ORDER BY id DESC LIMIT 500`
+      ).all(),
+    };
   });
 
   r.add('POST', '/api/admin/pedidos/:id/reembolso', (ctx) => {

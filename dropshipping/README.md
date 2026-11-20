@@ -10,6 +10,15 @@ npm run dev                   # servidor local con el simulador de pagos, en htt
 npm run crear-admin -- admin@tudominio.com "clave de 12+ caracteres"
 ```
 
+## Pantallas (`public/`)
+
+Una sola página sin dependencias ni compilación, con rutas por `#`:
+
+- `#/` inicio, `#/registro`, `#/entrar`
+- `#/t/<tienda>` tienda pública de cada vendedor, `#/comprar/...` checkout, `#/pedido/<código>` seguimiento para el comprador
+- `#/panel/...` panel del proveedor (productos, pedidos, saldo, cuenta) o del vendedor (catálogo, tienda, ventas, saldo, cuenta y plan)
+- `#/admin/...` resumen, pedidos, identidades, retiros, usuarios y ajustes
+
 ## Configuración (variables de entorno)
 
 | Variable | Para qué |

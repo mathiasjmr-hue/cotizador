@@ -180,6 +180,7 @@ test('aviso de pago de Pagopar: valida la firma y es idempotente', async () => {
 test('seguridad básica de la API', async () => {
   const anon = client();
   assert.equal((await anon('GET', '/api/saldo')).status, 401);
+  assert.deepEqual((await anon('GET', '/api/yo')).body, { user: null });
   assert.equal((await anon('GET', '/api/admin/resumen')).status, 401);
   // Sin JSON no se aceptan cambios (protección contra formularios de otros sitios).
   const res = await fetch(base + '/api/login', {
