@@ -333,17 +333,22 @@ function calc(v,plan,plazo,Ein,usado){
   if(plan==="N48"&&S.se){
     // Plan Normal sin entrega (pedido de Mathias 16/11/2026): precio de lista, 4 refuerzos de 4%, refuerzo final 25%, el resto en 48 cuotas y la 1ª absorbe el redondeo; sin beneficios
     const T=v.p[0],b=bonoUSD(v,false),ref=f5(T*.04),fin=f10(T*.25),base=T-b-fin;
-    Object.assign(r,{precio:T,precioL:"Precio de lista",bono:b,min:0,E:0,low:false,sinEnt:true,single:true,t1:"Con refuerzos"});
-    r.sin=Object.assign({entrega:0,n:48,sinEnt:true,refN:4,ref,refM:meses(4),fin,finM:"cuota 49"},cuotasSE(base-4*ref,48));
+    Object.assign(r,{precio:T,precioL:"Precio de lista",bono:b,min:0,E:0,low:false,sinEnt:true});
+    r.con=Object.assign({entrega:0,n:48,sinEnt:true,refN:4,ref,refM:meses(4),fin,finM:"cuota 49"},cuotasSE(base-4*ref,48));
+    // Sin refuerzos anuales (pedido de Mathias 19/11/2026): los 4 refuerzos pasan a las cuotas; el refuerzo final se mantiene
+    r.sin=Object.assign({entrega:0,n:48,sinEnt:true,fin,finM:"cuota 49"},cuotasSE(base,48));
     r.total=T-b;return r;
   }
   if(plan==="N48"){
     // Plan Normal: formato Eco sobre el precio de lista, sin beneficios
     const T=v.p[0],b=bonoUSD(v,false),pe=v.volvo?.15:.10,min=Math.round(T*pe),{E,low}=entregaDe(Ein,min);
     const ref=f5(T*.04),fin=f10(T*.25),base=T-b-fin,Q=base-E-4*ref,c=f5(Math.max(Q,0)/48);
-    Object.assign(r,{precio:T,precioL:"Precio de lista",bono:b,min,minTxt:Math.round(pe*100)+"% del precio de lista",E,low,single:true,t1:"Con refuerzos"});
-    r.sin={entrega:base-48*c-4*ref,n:48,cuota:c,refN:4,ref,refM:meses(4),fin,finM:"cuota 49"};
-    if(Q<=0)r.warn="La entrega es tan alta que no quedan cuotas.";
+    Object.assign(r,{precio:T,precioL:"Precio de lista",bono:b,min,minTxt:Math.round(pe*100)+"% del precio de lista",E,low});
+    if(Q>0)r.con={entrega:base-48*c-4*ref,n:48,cuota:c,refN:4,ref,refM:meses(4),fin,finM:"cuota 49"};
+    // Sin refuerzos anuales (pedido de Mathias 19/11/2026): los 4 refuerzos pasan a las cuotas; el refuerzo final se mantiene
+    const cs=f5(Math.max(base-E,0)/48);
+    r.sin={entrega:base-48*cs,n:48,cuota:cs,fin,finM:"cuota 49"};
+    if(base-E<=0)r.warn="La entrega es tan alta que no quedan cuotas.";
     r.total=T-b;return r;
   }
   if(plan==="CAMPO"){
@@ -467,8 +472,8 @@ function render(){
   const se=seOk&&$("sinEnt").checked;S.se=se;
   $("entBox").hidden=se;
   const r=calc(v,plan,plazo,Ein,se?false:usado);
-  // Plus 3 y Eco: una sola opción, con refuerzos por defecto; la pestaña cambia a sin refuerzos anuales
-  const conRef=plan==="P3"||plan==="ECO";
+  // Plus 3, Eco y Normal 48: una sola opción, con refuerzos por defecto; la pestaña cambia a sin refuerzos anuales
+  const conRef=plan==="P3"||plan==="ECO"||plan==="N48";
   $("refs").hidden=!conRef;
   if(conRef){
     $("refs").innerHTML=[["con","Con refuerzos"],["sin","Sin refuerzos anuales"]].map(([k,t])=>`<button type="button" data-r="${k}" aria-pressed="${k===S.ref}">${t}</button>`).join("");
@@ -580,7 +585,7 @@ function mensaje(v,r){
 function pie(v){
   const base="Fuentes: listas de cada marca de septiembre y octubre 2026 (Fiat 2/7/2026, Volvo 10/9/2026 y 10/4/2026), planes Familiar 2 y Plus 3 de cada marca, Plan Eco I a IV y BMW Motorrad del 2/10/2026, y bonos del memo Garden 202/2026 (facturaciones del 2 al 30/11/2026). ";
   const reglas="Lista: entrega mínima "+(v.volvo?"15%":"10%")+" del precio sin bono; refuerzos opcionales de hasta 4% por año; contado: un solo pago y, con usado, la tasación se descuenta del precio contado hasta el 50%. ";
-  return base+reglas+"Familiar 2, Plus 3 y Eco usan los valores publicados; si la entrega es mayor o hay bono, la diferencia baja las cuotas. Modelos fuera de la tabla Eco: lista + 7,9%, entrega 10%, 4 refuerzos de 4%, refuerzo final 25% en la cuota 49. Sin entrega inicial: Eco = lista + 7,9%, refuerzo final 25%, 4 refuerzos de 4% y el resto en 48 cuotas; Plus 3 = precio del plan con sus refuerzos y refuerzo final, el resto en 36 cuotas; la 1ª cuota absorbe el redondeo. Plan Normal 48: precio de lista, entrega 10% (Volvo 15%), 4 refuerzos de 4%, refuerzo final 25% en la cuota 49, sin beneficios. Plan Campo: precio Familiar 2, entrega mínima 20% con cuotas semestrales o 30% con cuotas anuales, hasta 5 años. Cuotas y refuerzos redondeados hacia abajo a múltiplos de US$ 5 (refuerzo final a US$ 10); la diferencia se suma a la entrega. Lista: se financia hasta 60 meses con o sin usado; con usado o con entrega menor a la mínima no incluye el 50% de la escritura.";
+  return base+reglas+"Familiar 2, Plus 3 y Eco usan los valores publicados; si la entrega es mayor o hay bono, la diferencia baja las cuotas. Modelos fuera de la tabla Eco: lista + 7,9%, entrega 10%, 4 refuerzos de 4%, refuerzo final 25% en la cuota 49. Sin entrega inicial: Eco = lista + 7,9%, refuerzo final 25%, 4 refuerzos de 4% y el resto en 48 cuotas; Plus 3 = precio del plan con sus refuerzos y refuerzo final, el resto en 36 cuotas; la 1ª cuota absorbe el redondeo. Plan Normal 48: precio de lista, entrega 10% (Volvo 15%), 4 refuerzos de 4%, refuerzo final 25% en la cuota 49, sin beneficios; opción sin refuerzos anuales: los 4 refuerzos pasan a las 48 cuotas y el refuerzo final se mantiene. Plan Campo: precio Familiar 2, entrega mínima 20% con cuotas semestrales o 30% con cuotas anuales, hasta 5 años. Cuotas y refuerzos redondeados hacia abajo a múltiplos de US$ 5 (refuerzo final a US$ 10); la diferencia se suma a la entrega. Lista: se financia hasta 60 meses con o sin usado; con usado o con entrega menor a la mínima no incluye el 50% de la escritura.";
 }
 $("modelo").onchange=()=>{S.i=+$("modelo").value;onVehicle();};
 ["bonoOn","usado","sinEnt","gsOn"].forEach(id=>$(id).onchange=render);
